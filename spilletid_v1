@@ -29,8 +29,8 @@ const FotballApp = () => {
     'G12/J12': { players: 9, time: '2x35 min', totalMinutes: 70 }
   };
   
-  // Helt ny tiln√¶rming til spillertid
-  // Vi bruker et objekt for √• holde styr p√• hver spillers tid p√• banen
+  // Helt ny tilnærming til spillertid
+  // Vi bruker et objekt for å holde styr på hver spillers tid på banen
   const [playerTimers, setPlayerTimers] = useState({});
   
   // Timer for kampklokken
@@ -39,10 +39,10 @@ const FotballApp = () => {
     
     if (isRunning) {
       interval = setInterval(() => {
-        // √òk kampklokken
+        // Øk kampklokken
         setMatchTime(prevTime => prevTime + 1);
         
-        // √òk tiden BARE for spillere som er p√• banen
+        // Øk tiden BARE for spillere som er på banen
         setPlayerTimers(prevTimers => {
           const newTimers = { ...prevTimers };
           
@@ -68,7 +68,7 @@ const FotballApp = () => {
     };
   }, [isRunning, activePlayers]);
   
-  // Sjekk m√•lforskjell og administrer ekstraspiller
+  // Sjekk målforskjell og administrer ekstraspiller
   useEffect(() => {
     const scoreDiff = Math.abs(homeScore - awayScore);
     const wasAllowed = extraPlayerAllowed;
@@ -82,16 +82,16 @@ const FotballApp = () => {
         setShowExtraPlayerMessage(true);
         setTimeout(() => setShowExtraPlayerMessage(false), 5000);
         
-        // Automatisk legg til ekstraspiller hvis det er noen p√• benken
+        // Automatisk legg til ekstraspiller hvis det er noen på benken
         if (benchPlayers.length > 0) {
           addExtraPlayer();
         }
       } else if (!nowAllowed && wasAllowed) {
-        // Viser melding om at en spiller m√• fjernes
+        // Viser melding om at en spiller må fjernes
         setShowRemovePlayerMessage(true);
         setTimeout(() => setShowRemovePlayerMessage(false), 5000);
         
-        // Automatisk fjern ekstraspiller hvis det er for mange p√• banen
+        // Automatisk fjern ekstraspiller hvis det er for mange på banen
         const maxPlayers = ageGroups[ageGroup]?.players || 7;
         if (activePlayers.length > maxPlayers) {
           removeExtraPlayer();
@@ -214,13 +214,13 @@ const FotballApp = () => {
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
           <h1 className="text-3xl font-bold text-green-800 mb-4">Fotball Spilletid</h1>
           <p className="text-gray-600 mb-8">
-            Et verkt√∏y for √• administrere spilletid i barneidretten. S√∏rg for at alle f√•r spille like mye!
+            Et verktøy for å administrere spilletid i barneidretten. Sørge for at alle får spille like mye!
           </p>
           <button
             onClick={() => setCurrentView('setup')}
             className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
           >
-            Kom i gang
+            Start en ny kamp!
           </button>
         </div>
       </div>
@@ -350,7 +350,7 @@ const FotballApp = () => {
           ) : (
             <div className="p-3 bg-yellow-100 border border-yellow-300 rounded-lg text-center">
               <p className="text-sm text-yellow-800">
-                Du m√• velge minst {maxPlayers} spillere for √• starte kampen.
+                Du må velge minst {maxPlayers} spillere for å starte kampen.
               </p>
               <p className="text-sm text-yellow-800 font-bold mt-1">
                 Mangler {maxPlayers - selectedPlayers.length} spillere.
@@ -469,7 +469,7 @@ const FotballApp = () => {
               <div className="flex items-center gap-2">
                 <CheckCircle size={18} className="text-green-700" />
                 <p className="text-sm text-green-800 font-medium">
-                  4+ m√•l forskjell! En ekstra spiller er lagt til.
+                  4+ mål forskjell! En ekstra spiller er lagt til.
                 </p>
               </div>
             </div>
@@ -480,7 +480,7 @@ const FotballApp = () => {
               <div className="flex items-center gap-2">
                 <AlertTriangle size={18} className="text-orange-700" />
                 <p className="text-sm text-orange-800 font-medium">
-                  Mindre enn 4 m√•l forskjell! En spiller er tatt av banen.
+                  Mindre enn 4 mål forskjell! En spiller er tatt av banen.
                 </p>
               </div>
             </div>
@@ -489,18 +489,18 @@ const FotballApp = () => {
           {/* Status informasjon */}
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              <span className="font-medium">Status:</span> {isRunning ? 'Tiden l√∏per' : 'Pause'} 
+              <span className="font-medium">Status:</span> {isRunning ? 'Tiden løper' : 'Pause'} 
               <span className="ml-2 text-xs text-blue-600">
-                (Spillertid telles kun n√•r spilleren er p√• banen)
+                (Spillertid telles kun når spilleren er på banen)
               </span>
             </p>
           </div>
           
-          {/* Spillere p√• banen */}
+          {/* Spillere på banen */}
           <div className="mb-6">
             <h3 className="font-semibold mb-2 flex items-center gap-2">
               <Users size={18} />
-              P√• banen ({activePlayers.length}/{maxPlayers}{extraPlayerAllowed ? '+1' : ''})
+              På banen ({activePlayers.length}/{maxPlayers}{extraPlayerAllowed ? '+1' : ''})
             </h3>
             <div className="space-y-2">
               {activePlayers.map(player => {
@@ -545,7 +545,7 @@ const FotballApp = () => {
             </div>
           </div>
           
-          {/* Spillere p√• benken */}
+          {/* Spillere på benken */}
           <div className="mb-6">
             <h3 className="font-semibold mb-2">Benken ({benchPlayers.length})</h3>
             <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -591,7 +591,7 @@ const FotballApp = () => {
       return timeB - timeA;
     });
     
-    // Beregn total mulig spilletid basert p√• aldersgruppe
+    // Beregn total mulig spilletid basert på aldersgruppe
     const totalPossibleSeconds = (ageGroups[ageGroup]?.totalMinutes || 60) * 60;
     
     return (
@@ -629,12 +629,12 @@ const FotballApp = () => {
             {sortedPlayers.map(player => {
               const playerTime = playerTimers[player.id] || 0;
               const percentage = calculatePlayTimePercentage(player.id);
-              // Beregn ogs√• hvor mye av hele kampen (ikke bare den tiden som har g√•tt)
+              // Beregn også hvor mye av hele kampen (ikke bare den tiden som har gått)
               const percentageOfTotal = totalPossibleSeconds > 0 
                 ? Math.round((playerTime / totalPossibleSeconds) * 100) 
                 : 0;
               
-              // Sjekk om spilleren er p√• banen
+              // Sjekk om spilleren er på banen
               const isOnField = activePlayers.some(p => p.id === player.id);
               
               return (
@@ -671,7 +671,7 @@ const FotballApp = () => {
         onClick={() => setCurrentView('welcome')}
         className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
       >
-        G√• til forsiden
+        Gå til forsiden
       </button>
     </div>
   );
