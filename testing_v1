@@ -1,15 +1,548 @@
 index.html
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Kampliste</title>
-</head>
-<body>
-  <h1>Kamper denne uka</h1>
-  <ul>
-    <li>Mandag: Bøler vs Oppsal</li>
-    <li>Onsdag: Vålerenga vs Grorud</li>
-    <li>Lørdag: Skeid vs Lyn</li>
-  </ul>
-</body>
-</html>
+import React, { useState, useEffect } from 'react';
+import { Play, Pause, Square, Users, Clock, RefreshCw, Plus, Minus } from 'lucide-react';
+
+const FotballApp = () => {
+  const [currentView, setCurrentView] = useState('setup'); // setup, team-selection, match
+  const [allPlayers, setAllPlayers] = useState([]);
+  const [selectedPlayers, setSelectedPlayers] = useState([]);
+  const [activePlayers, setActivePlayers] = useState([]);
+  const [benchPlayers, setBenchPlayers] = useState([]);
+  const [matchTime, setMatchTime] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const [homeScore, setHomeScore] = useState(0);
+  const [awayScore, setAwayScore] = useState(0);
+  const [selectedAgeGroup, setSelectedAgeGroup] = useState('G11/J11');
+  const [maxPlayersOnField, setMaxPlayersOnField] = useState(7);
+  const [extraPlayerAllowed, setExtraPlayerAllowed] = useState(false);
+  const [playerStats, setPlayerStats] = useState({});
+  const [currentHalf, setCurrentHalf] = useState(1);
+  const [halfTime, setHalfTime] = useState(0);
+  const [isHalfTime, setIsHalfTime] = useState(false);
+  const [showExtraPlayerWarning, setShowExtraPlayerWarning] = useState(false);
+  const [showRemovePlayerWarning, setShowRemovePlayerWarning] = useState(false);
+
+  // Timer effect
+  useEffect(() => {
+    let interval;
+    if (isRunning && !isHalfTime) {
+      interval = setInterval(() => {
+        setMatchTime(time => time + 1);
+        setHalfTime(time => time + 1);
+        // Update playing time for active players
+        setPlayerStats(prev => {
+          const updated = { ...prev };
+          activePlayers.forEach(player => {
+            if (!updated[player.id]) {
+              updated[player.id] = { playingTime: 0, totalTime: 0 };
+            }
+            updated[player.id].playingTime += 1;
+            updated[player.id].totalTime += 1;
+          });
+          return updated;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isRunning, activePlayers, isHalfTime]);
+
+  // Get match format info based on age group
+  const getAgeGroupInfo = (ageGroup) => {
+    const ageGroups = {
+      'G6/J6': { name: '3v3 (G6/J6)', players: 3, halfDuration: 20, description: '2x20 min', ageInfo: 'Under 6 år' },
+      'G7/J7': { name: '3v3 (G7/J7)', players: 3, halfDuration: 20, description: '2x20 min', ageInfo: 'Under 7 år' },
+      'G8/J8': { name: '5v5 (G8/J8)', players: 5, halfDuration: 25, description: '2x25 min', ageInfo: 'Under 8 år' },
+      'G9/J9': { name: '5v5 (G9/J9)', players: 5, halfDuration: 25, description: '2x25 min', ageInfo: 'Under 9 år' },
+      'G10/J10': { name: '7v7 (G10/J10)', players: 7, halfDuration: 30, description: '2x30 min', ageInfo: 'Under 10 år' },
+      'G11/J11': { name: '7v7 (G11/J11)', players: 7, halfDuration: 30, description: '2x30 min', ageInfo: 'Under 11 år' },
+      'G12/J12': { name: '9v9 (G12/J12)', players: 9, halfDuration: 35, description: '2x35 min', ageInfo: 'Under 12 år' },
+      'G13/J13': { name: '9v9 (G13/J13)', players: 9, halfDuration: 35, description: '2x35 min', ageInfo: 'Under 13 år' },
+      'G14/J14': { name: '11v11 (G14/J14)', players: 11, halfDuration: 35, description: '2x35 min', ageInfo: 'Under 14 år' },
+      'G15/J15': { name: '11v11 (G15/J15)', players: 11, halfDuration: 40, description: '2x40 min', ageInfo: 'Under 15 år' },
+      'G16/J16': { name: '11v11 (G16/J16)', players: 11, halfDuration: 40, description: '2x40 min', ageInfo: 'Under 16 år' },
+      'G17/J17': { name: '11v11 (G17/J17)', players: 11, halfDuration: 40, description: '2x40 min', ageInfo: 'Under 17 år' },
+      'Junior': { name: '11v11 (Junior)', players: 11, halfDuration: 45, description: '2x45 min', ageInfo: 'Under 19 år' },
+      'Senior': { name: '11v11 (Senior)', players: 11, halfDuration: 45, description: '2x45 min', ageInfo: '14+ år' },
+      'Old Boys': { name: '11v11 (Old Boys)', players: 11, halfDuration: 30, description: '2x30 min', ageInfo: '33+ år' },
+      'Old Girls': { name: '11v11 (Old Girls)', players: 11, halfDuration: 30, description: '2x30 min', ageInfo: '28+ år' }
+    };
+    return ageGroups[ageGroup] || ageGroups['G11/J11'];
+  };
+
+  // Check half time
+  useEffect(() => {
+    const ageInfo = getAgeGroupInfo(selectedAgeGroup);
+    if (halfTime >= ageInfo.halfDuration * 60 && currentHalf === 1 && !isHalfTime) {
+      setIsHalfTime(true);
+      setIsRunning(false);
+    }
+  }, [halfTime, currentHalf, isHalfTime, selectedAgeGroup]);
+
+  // Check if extra player is allowed and show warnings
+  useEffect(() => {
+    const scoreDiff = Math.abs(homeScore - awayScore);
+    const wasAllowed = extraPlayerAllowed;
+    const nowAllowed = scoreDiff >= 4;
+    
+    setExtraPlayerAllowed(nowAllowed);
+    
+    // Show warning when extra player becomes allowed
+    if (!wasAllowed && nowAllowed && activePlayers.length === maxPlayersOnField) {
+      setShowExtraPlayerWarning(true);
+      setTimeout(() => setShowExtraPlayerWarning(false), 5000);
+    }
+    
+    // Show warning when extra player must be removed
+    if (wasAllowed && !nowAllowed && activePlayers.length > maxPlayersOnField) {
+      setShowRemovePlayerWarning(true);
+      setTimeout(() => setShowRemovePlayerWarning(false), 8000);
+    }
+  }, [homeScore, awayScore, extraPlayerAllowed, activePlayers.length, maxPlayersOnField]);
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')};
+  };
+
+  const addPlayer = (name) => {
+    if (name.trim()) {
+      const newPlayer = {
+        id: Date.now(),
+        name: name.trim(),
+        number: allPlayers.length + 1
+      };
+      setAllPlayers([...allPlayers, newPlayer]);
+    }
+  };
+
+  const selectPlayerForMatch = (player) => {
+    if (selectedPlayers.length < 25) {
+      setSelectedPlayers([...selectedPlayers, player]);
+    }
+  };
+
+  const removePlayerFromMatch = (playerId) => {
+    setSelectedPlayers(selectedPlayers.filter(p => p.id !== playerId));
+  };
+
+  const startMatch = () => {
+    // Set initial active players (up to maxPlayersOnField)
+    const initial = selectedPlayers.slice(0, maxPlayersOnField);
+    const bench = selectedPlayers.slice(maxPlayersOnField);
+    
+    setActivePlayers(initial);
+    setBenchPlayers(bench);
+    
+    // Initialize player stats
+    const stats = {};
+    selectedPlayers.forEach(player => {
+      stats[player.id] = { playingTime: 0, totalTime: 0 };
+    });
+    setPlayerStats(stats);
+    
+    setCurrentView('match');
+  };
+
+  const substitutePlayer = (outPlayer, inPlayer) => {
+    const newActive = activePlayers.map(p => p.id === outPlayer.id ? inPlayer : p);
+    const newBench = benchPlayers.map(p => p.id === inPlayer.id ? outPlayer : p);
+    
+    setActivePlayers(newActive);
+    setBenchPlayers(newBench);
+  };
+
+  const startSecondHalf = () => {
+    setCurrentHalf(2);
+    setHalfTime(0);
+    setIsHalfTime(false);
+    setIsRunning(true);
+  };
+    if (extraPlayerAllowed && benchPlayers.length > 0 && activePlayers.length < maxPlayersOnField + 1) {
+      const playerToAdd = benchPlayers[0];
+      setActivePlayers([...activePlayers, playerToAdd]);
+      setBenchPlayers(benchPlayers.slice(1));
+    }
+  };
+
+  const removeExtraPlayer = () => {
+    if (activePlayers.length > maxPlayersOnField) {
+      const playerToRemove = activePlayers[activePlayers.length - 1];
+      setActivePlayers(activePlayers.slice(0, -1));
+      setBenchPlayers([...benchPlayers, playerToRemove]);
+    }
+  };
+
+  if (currentView === 'setup') {
+    return (
+      <div className="min-h-screen bg-green-50 p-4">
+        <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
+          <h1 className="text-2xl font-bold text-green-800 mb-6 text-center">
+            Fotball Spilletid
+          </h1>
+          
+            <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Aldersklasse og kampformat
+            </label>
+            <select 
+              value={selectedAgeGroup} 
+              onChange={(e) => {
+                setSelectedAgeGroup(e.target.value);
+                setMaxPlayersOnField(getAgeGroupInfo(e.target.value).players);
+              }}
+              className="w-full p-2 border border-gray-300 rounded-md"
+            >
+              <optgroup label="Barnefotball">
+                <option value="G6/J6">G6/J6 - 3v3 - 2x20 min (Under 6 år)</option>
+                <option value="G7/J7">G7/J7 - 3v3 - 2x20 min (Under 7 år)</option>
+                <option value="G8/J8">G8/J8 - 5v5 - 2x25 min (Under 8 år)</option>
+                <option value="G9/J9">G9/J9 - 5v5 - 2x25 min (Under 9 år)</option>
+                <option value="G10/J10">G10/J10 - 7v7 - 2x30 min (Under 10 år)</option>
+                <option value="G11/J11">G11/J11 - 7v7 - 2x30 min (Under 11 år)</option>
+              </optgroup>
+              <optgroup label="Ungdomsfotball">
+                <option value="G12/J12">G12/J12 - 9v9 - 2x35 min (Under 12 år)</option>
+                <option value="G13/J13">G13/J13 - 9v9 - 2x35 min (Under 13 år)</option>
+                <option value="G14/J14">G14/J14 - 11v11 - 2x35 min (Under 14 år)</option>
+                <option value="G15/J15">G15/J15 - 11v11 - 2x40 min (Under 15 år)</option>
+                <option value="G16/J16">G16/J16 - 11v11 - 2x40 min (Under 16 år)</option>
+                <option value="G17/J17">G17/J17 - 11v11 - 2x40 min (Under 17 år)</option>
+              </optgroup>
+              <optgroup label="Senior og veteran">
+                <option value="Junior">Junior - 11v11 - 2x45 min (Under 19 år)</option>
+                <option value="Senior">Senior - 11v11 - 2x45 min (14+ år)</option>
+                <option value="Old Boys">Old Boys - 11v11 - 2x30 min (33+ år)</option>
+                <option value="Old Girls">Old Girls - 11v11 - 2x30 min (28+ år)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold mb-3">Legg til spillere</h2>
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                placeholder="Spillernavn"
+                className="flex-1 p-2 border border-gray-300 rounded-md"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    addPlayer(e.target.value);
+                    e.target.value = '';
+                  }
+                }}
+              />
+              <button
+                onClick={(e) => {
+                  const input = e.target.previousElementSibling;
+                  addPlayer(input.value);
+                  input.value = '';
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                <Plus size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {allPlayers.map(player => (
+                <div key={player.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <span>#{player.number} {player.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {allPlayers.length >= maxPlayersOnField && (
+            <button
+              onClick={() => setCurrentView('team-selection')}
+              className="w-full py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold"
+            >
+              Velg kamptropp
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (currentView === 'team-selection') {
+    return (
+      <div className="min-h-screen bg-green-50 p-4">
+        <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-xl font-bold text-green-800 mb-4">Velg kamptropp</h2>
+          
+          <div className="mb-4">
+            <p className="text-sm text-gray-600">Valgt: {selectedPlayers.length}/25</p>
+          </div>
+
+          <div className="mb-6">
+            <h3 className="font-semibold mb-2">Tilgjengelige spillere:</h3>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {allPlayers.filter(p => !selectedPlayers.find(sp => sp.id === p.id)).map(player => (
+                <div key={player.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <span>#{player.number} {player.name}</span>
+                  <button
+                    onClick={() => selectPlayerForMatch(player)}
+                    className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                  >
+                    Velg
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h3 className="font-semibold mb-2">Kamptropp:</h3>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {selectedPlayers.map(player => (
+                <div key={player.id} className="flex items-center justify-between p-2 bg-blue-50 rounded">
+                  <span>#{player.number} {player.name}</span>
+                  <button
+                    onClick={() => removePlayerFromMatch(player.id)}
+                    className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                  >
+                    Fjern
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentView('setup')}
+              className="flex-1 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            >
+              Tilbake
+            </button>
+            {selectedPlayers.length >= maxPlayersOnField && (
+              <button
+                onClick={startMatch}
+                className="flex-1 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                Start kamp
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-green-50 p-4">
+      <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-green-800">Live Kamp</h1>
+          <div className="text-lg text-gray-600 mb-1">
+            {currentHalf}. omgang - {getAgeGroupInfo(selectedAgeGroup).name}
+          </div>
+          <div className="text-3xl font-bold text-blue-600">
+            {formatTime(halfTime)}
+          </div>
+          <div className="text-sm text-gray-500">
+            Total: {formatTime(matchTime)} / {getAgeGroupInfo(selectedAgeGroup).description}
+          </div>
+        </div>
+
+        {/* Half time break */}
+        {isHalfTime && (
+          <div className="mb-6 p-4 bg-yellow-100 border border-yellow-300 rounded-lg text-center">
+            <h3 className="text-lg font-bold text-yellow-800 mb-2">Pause</h3>
+            <p className="text-sm text-yellow-700 mb-3">1. omgang ferdig</p>
+            <button
+              onClick={startSecondHalf}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold"
+            >
+              Start 2. omgang
+            </button>
+          </div>
+        )}
+
+        {/* Timer controls */}
+        <div className="flex justify-center gap-4 mb-6">
+          <button
+            onClick={() => setIsRunning(!isRunning)}
+            className={px-4 py-2 rounded-md text-white font-semibold ${
+              isRunning ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'
+            }}
+          >
+            {isRunning ? <Pause size={20} /> : <Play size={20} />}
+          </button>
+          <button
+            onClick={() => {
+              setMatchTime(0);
+              setIsRunning(false);
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+          >
+            <Square size={20} />
+          </button>
+        </div>
+
+        {/* Score */}
+        <div className="flex justify-center items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+          <div className="text-center">
+            <div>Hjemme</div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setHomeScore(Math.max(0, homeScore - 1))}
+                className="px-2 py-1 bg-red-500 text-white rounded"
+              >
+                <Minus size={16} />
+              </button>
+              <span className="text-2xl font-bold w-8">{homeScore}</span>
+              <button
+                onClick={() => setHomeScore(homeScore + 1)}
+                className="px-2 py-1 bg-green-500 text-white rounded"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          </div>
+          <div className="text-2xl font-bold">-</div>
+          <div className="text-center">
+            <div>Borte</div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setAwayScore(Math.max(0, awayScore - 1))}
+                className="px-2 py-1 bg-red-500 text-white rounded"
+              >
+                <Minus size={16} />
+              </button>
+              <span className="text-2xl font-bold w-8">{awayScore}</span>
+              <button
+                onClick={() => setAwayScore(awayScore + 1)}
+                className="px-2 py-1 bg-green-500 text-white rounded"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Extra player notifications */}
+        {showExtraPlayerWarning && (
+          <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-lg animate-pulse">
+            <p className="text-sm text-orange-800 font-medium">
+              🚨 Du kan nå sette på en ekstra spiller! (4+ mål forskjell)
+            </p>
+          </div>
+        )}
+
+        {showRemovePlayerWarning && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg animate-pulse">
+            <p className="text-sm text-red-800 font-medium">
+              ⚠️ Du må ta ut en spiller! (ikke lenger 4+ mål forskjell)
+            </p>
+          </div>
+        )}
+
+        {/* Extra player notification */}
+        {extraPlayerAllowed && (
+          <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+            <p className="text-sm text-orange-800 font-medium">
+              Du kan sette på en ekstra spiller! (4+ mål forskjell)
+            </p>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={addExtraPlayer}
+                className="px-3 py-1 bg-orange-600 text-white rounded text-sm hover:bg-orange-700"
+              >
+                Legg til spiller
+              </button>
+              {activePlayers.length > maxPlayersOnField && (
+                <button
+                  onClick={removeExtraPlayer}
+                  className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                >
+                  Fjern ekstra spiller
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Active players */}
+        <div className="mb-6">
+          <h3 className="font-semibold mb-2 flex items-center gap-2">
+            <Users size={20} />
+            På banen ({activePlayers.length}/{maxPlayersOnField}{extraPlayerAllowed ? '+1' : ''})
+          </h3>
+          <div className="space-y-2">
+            {activePlayers.map(player => (
+              <div key={player.id} className="flex items-center justify-between p-3 bg-green-100 rounded-lg">
+                <div>
+                  <div className="font-medium">#{player.number} {player.name}</div>
+                  <div className="text-sm text-gray-600 flex items-center gap-1">
+                    <Clock size={14} />
+                    {formatTime(playerStats[player.id]?.playingTime || 0)}
+                  </div>
+                </div>
+                <select
+                  onChange={(e) => {
+                    const inPlayerId = parseInt(e.target.value);
+                    const inPlayer = benchPlayers.find(p => p.id === inPlayerId);
+                    if (inPlayer) {
+                      substitutePlayer(player, inPlayer);
+                    }
+                  }}
+                  className="text-sm p-1 border border-gray-300 rounded"
+                  value=""
+                >
+                  <option value="">Bytt</option>
+                  {benchPlayers.map(benchPlayer => (
+                    <option key={benchPlayer.id} value={benchPlayer.id}>
+                      #{benchPlayer.number} {benchPlayer.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bench players */}
+        <div className="mb-6">
+          <h3 className="font-semibold mb-2">Benken ({benchPlayers.length})</h3>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {benchPlayers.map(player => (
+              <div key={player.id} className="flex items-center justify-between p-2 bg-gray-100 rounded">
+                <div>
+                  <div className="font-medium">#{player.number} {player.name}</div>
+                  <div className="text-sm text-gray-600 flex items-center gap-1">
+                    <Clock size={14} />
+                    {formatTime(playerStats[player.id]?.playingTime || 0)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            setCurrentView('setup');
+            setMatchTime(0);
+            setHalfTime(0);
+            setCurrentHalf(1);
+            setIsHalfTime(false);
+            setIsRunning(false);
+            setHomeScore(0);
+            setAwayScore(0);
+            setPlayerStats({});
+            setShowExtraPlayerWarning(false);
+            setShowRemovePlayerWarning(false);
+          }}
+          className="w-full py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+        >
+          Avslutt kamp
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default FotballApp;
