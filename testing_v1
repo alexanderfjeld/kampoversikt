@@ -1,0 +1,15 @@
+index.html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Kampliste</title>
+</head>
+<body>
+  <h1>Kamper denne uka</h1>
+  <ul>
+    <li>Mandag: Bøler vs Oppsal</li>
+    <li>Onsdag: Vålerenga vs Grorud</li>
+    <li>Lørdag: Skeid vs Lyn</li>
+  </ul>
+</body>
+</html>
