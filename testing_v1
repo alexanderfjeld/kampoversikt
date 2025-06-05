@@ -1,4 +1,3 @@
-index.html
 import React, { useState, useEffect } from 'react';
 import { Play, Pause, Square, Users, Clock, RefreshCw, Plus, Minus } from 'lucide-react';
 
